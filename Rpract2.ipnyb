@@ -1,0 +1,52 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+
+# Load dataset
+df = pd.read_csv("emails.csv")
+
+# Drop 'Email No.' text ID column and check for missing values
+df.drop(['Email No.'], axis=1, inplace=True)
+df.dropna(inplace=True)
+
+# Separate features (word counts) and target ('Prediction')
+X = df.drop('Prediction', axis=1)
+y = df['Prediction']
+
+# Split dataset into 80% training and 20% testing
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# 1. K-Nearest Neighbors (KNN) Classifier
+knn = KNeighborsClassifier(n_neighbors=5)
+knn.fit(X_train, y_train)
+knn_pred = knn.predict(X_test)
+
+# 2. Support Vector Machine (SVM) Classifier
+svm = SVC(kernel='linear')
+svm.fit(X_train, y_train)
+svm_pred = svm.predict(X_test)
+
+# 3. Analyze Performance
+print("=== K-Nearest Neighbors (KNN) Performance ===")
+print(f"Accuracy: {accuracy_score(y_test, knn_pred):.4f}")
+print("Confusion Matrix:\n", confusion_matrix(y_test, knn_pred))
+print("Classification Report:\n", classification_report(y_test, knn_pred, target_names=['Not Spam (0)', 'Spam (1)']))
+
+print("\n=== Support Vector Machine (SVM) Performance ===")
+print(f"Accuracy: {accuracy_score(y_test, svm_pred):.4f}")
+print("Confusion Matrix:\n", confusion_matrix(y_test, svm_pred))
+print("Classification Report:\n", classification_report(y_test, svm_pred, target_names=['Not Spam (0)', 'Spam (1)']))
+
+# 4. Display predictions as 'Spam' and 'Not Spam'
+label_map = {0: 'Not Spam', 1: 'Spam'}
+
+results = pd.DataFrame({
+    'Actual': y_test.map(label_map).values,
+    'KNN_Prediction': pd.Series(knn_pred).map(label_map).values,
+    'SVM_Prediction': pd.Series(svm_pred).map(label_map).values
+})
+
+print("\n=== Sample Email Predictions ===")
+print(results.head(15))
