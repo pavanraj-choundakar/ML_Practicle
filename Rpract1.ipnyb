@@ -1,0 +1,75 @@
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import r2_score, mean_squared_error
+
+# Load dataset
+df = pd.read_csv("uber.csv")
+
+# 1. Pre-process the dataset
+# Drop unnecessary columns and missing values
+df = df.drop(['Unnamed: 0', 'key'], axis=1)
+df.dropna(inplace=True)
+
+# Convert pickup_datetime to extract useful features (hour, day, month)
+df['pickup_datetime'] = pd.to_datetime(df['pickup_datetime'])
+df['hour'] = df['pickup_datetime'].dt.hour
+df['day'] = df['pickup_datetime'].dt.day
+df['month'] = df['pickup_datetime'].dt.month
+df.drop(['pickup_datetime'], axis=1, inplace=True)
+
+# Calculate simple Euclidean distance between pickup and dropoff
+df['distance'] = np.sqrt(
+    (df['dropoff_longitude'] - df['pickup_longitude'])**2 +
+    (df['dropoff_latitude'] - df['pickup_latitude'])**2
+)
+
+# 2. Identify and remove outliers
+# Visualize outliers using a boxplot
+plt.figure(figsize=(6, 4))
+sns.boxplot(x=df['fare_amount'])
+plt.title("Fare Amount Outliers")
+plt.show()
+
+# Remove invalid fares, extreme coordinates, and unrealistic passenger counts
+df = df[(df['fare_amount'] > 0) & (df['fare_amount'] < 100)]
+df = df[(df['passenger_count'] > 0) & (df['passenger_count'] <= 6)]
+df = df[(df['pickup_latitude'].between(-90, 90)) & (df['dropoff_latitude'].between(-90, 90))]
+df = df[(df['pickup_longitude'].between(-180, 180)) & (df['dropoff_longitude'].between(-180, 180))]
+
+# 3. Check the correlation
+plt.figure(figsize=(8, 6))
+sns.heatmap(df.corr(), annot=True, cmap="coolwarm", fmt=".2f")
+plt.title("Correlation Matrix")
+plt.show()
+
+# Prepare features (X) and target (y)
+X = df.drop('fare_amount', axis=1)
+y = df['fare_amount']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# 4. Implement Linear Regression and Random Forest Regression
+lr_model = LinearRegression()
+lr_model.fit(X_train, y_train)
+lr_pred = lr_model.predict(X_test)
+
+# Using n_estimators=50 for faster execution
+rf_model = RandomForestRegressor(n_estimators=50, random_state=42)
+rf_model.fit(X_train, y_train)
+rf_pred = rf_model.predict(X_test)
+
+# 5. Evaluate and compare models (R2 and RMSE)
+lr_r2 = r2_score(y_test, lr_pred)
+lr_rmse = np.sqrt(mean_squared_error(y_test, lr_pred))
+
+rf_r2 = r2_score(y_test, rf_pred)
+rf_rmse = np.sqrt(mean_squared_error(y_test, rf_pred))
+
+print("--- Model Evaluation ---")
+print(f"Linear Regression -> R2 Score: {lr_r2:.4f}, RMSE: {lr_rmse:.4f}")
+print(f"Random Forest     -> R2 Score: {rf_r2:.4f}, RMSE: {rf_rmse:.4f}")
